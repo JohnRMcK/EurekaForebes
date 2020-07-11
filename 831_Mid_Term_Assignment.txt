@@ -213,4 +213,52 @@ Lift_forest <- performance(forest_ROC_prediction,"lift","rpp")
 plot(Lift_forest)
 
 
+###
+### Gradient Boosting Machines (XGboost)
+###
+
+if("pacman" %in% rownames(installed.packages()) == FALSE) {install.packages("pacman")} # Check if you have universal installer package, install if not
+
+pacman::p_load("caret","ROCR","lift","xgboost") #Check, and if needed install the necessary packages
+
+data_matrix <- model.matrix(converted_in_7days~ ., data = data1_balance)[,-1]
+
+x_train <- data_matrix[ inTrain,]
+x_test <- data_matrix[ -inTrain,]
+#Error: cannot allocate vector of size 2469.0 Gb
+#error due to x_train and x_test vector sizes.
+
+y_train <-training$converted_in_7days
+y_test <-testing$converted_in_7days
+
+#parameters have not been tuned. 
+model_XGboost<-xgboost(data = data.matrix(x_train), 
+                       label = as.numeric(as.character(y_train)), 
+                       eta = 0.1,       # hyperparameter: learning rate 
+                       max_depth = 20,  # hyperparameter: size of a tree in each boosting iteration
+                       nround=50,       # hyperparameter: number of boosting iterations  
+                       objective = "binary:logistic"
+)
+
+XGboost_prediction<-predict(model_XGboost,newdata=x_test, type="response") #Predict classification (for confusion matrix)
+confusionMatrix(as.factor(ifelse(XGboost_prediction>0.5,1,0)),y_test,positive="1") #Display confusion matrix
+
+####ROC Curve
+XGboost_ROC_prediction <- prediction(XGboost_prediction, y_test) #Calculate errors
+XGboost_ROC_testing <- performance(XGboost_ROC_prediction,"tpr","fpr") #Create ROC curve data
+plot(XGboost_ROC_testing) #Plot ROC curve
+
+####AUC
+auc.tmp <- performance(XGboost_ROC_prediction,"auc") #Create AUC data
+XGboost_auc_testing <- as.numeric(auc.tmp@y.values) #Calculate AUC
+XGboost_auc_testing 
+
+#### Lift chart
+plotLift(XGboost_prediction, y_test, cumulative = TRUE, n.buckets = 10) # Plot Lift chart
+
+### An alternative way is to plot a Lift curve not by buckets, but on all data points
+Lift_XGboost <- performance(XGboost_ROC_prediction,"lift","rpp")
+plot(Lift_XGboost)
+
+
 
